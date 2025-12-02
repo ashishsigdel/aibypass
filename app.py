@@ -82,23 +82,74 @@ def api_humanize():
     prompt = data.get('prompt')
     jsession = data.get('jsession', '')
     timeout = int(data.get('timeout', 120))
-    # allow client to pass uniqueid or generate new one
-    uniqueid = data.get('uniqueid')
+    double_check = data.get('double_check', False)
 
     if not prompt:
         return jsonify({'error': 'prompt is required'}), 400
 
+    def split_into_chunks(text, max_words=200):
+        paragraphs = text.split('\n')
+        chunks = []
+        current_chunk = []
+        current_word_count = 0
+
+        for para in paragraphs:
+            para = para.strip()
+            if not para:
+                continue
+            
+            words = len(para.split())
+            
+            # If adding this paragraph exceeds max_words and we have something in current_chunk
+            if current_word_count + words > max_words and current_chunk:
+                chunks.append('\n\n'.join(current_chunk))
+                current_chunk = []
+                current_word_count = 0
+            
+            current_chunk.append(para)
+            current_word_count += words
+            
+            # If a single paragraph is huge (starts empty or just added), it just becomes a chunk
+            if current_word_count >= max_words:
+                 chunks.append('\n\n'.join(current_chunk))
+                 current_chunk = []
+                 current_word_count = 0
+
+        if current_chunk:
+            chunks.append('\n\n'.join(current_chunk))
+        
+        return chunks
+
+    def process_text(input_text):
+        chunks = split_into_chunks(input_text)
+        results = []
+        for i, chunk in enumerate(chunks):
+            # Generate new uniqueid for each chunk request to be safe
+            uid = uuid.uuid4().hex
+            _, recordId, _ = send_humanize(chunk, jsession=jsession, uniqueid=uid)
+            if not recordId:
+                raise Exception(f"Failed to get recordId for chunk {i+1}")
+            
+            res = poll_record(recordId, uid, jsession=jsession, timeout=timeout)
+            if res['state'] == 'success' and res['response']:
+                results.append(res['response'])
+            else:
+                raise Exception(f"Failed to humanize chunk {i+1}. State: {res['state']}")
+        return '\n\n'.join(results)
+
     try:
-        uniqueid, recordId, initial = send_humanize(prompt, jsession=jsession, uniqueid=uniqueid)
+        # First pass
+        pass1 = process_text(prompt)
+        
+        final_response = pass1
+        if double_check:
+            # Second pass
+            final_response = process_text(pass1)
+            
+        return jsonify({'result': {'response': final_response, 'state': 'success'}})
+
     except Exception as e:
-        return jsonify({'error': 'initial request failed', 'details': str(e)}), 500
-
-    if not recordId:
-        # return initial payload if no recordId
-        return jsonify({'uniqueid': uniqueid, 'recordId': None, 'initial': initial}), 200
-
-    result = poll_record(recordId, uniqueid, jsession=jsession, timeout=timeout)
-    return jsonify({'uniqueid': uniqueid, 'recordId': recordId, 'result': result})
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':

@@ -249,6 +249,20 @@
               </button>
             </div>
 
+            <div
+              style="
+                margin-top: 1rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+              "
+            >
+              <input type="checkbox" id="doubleCheck" style="width: auto" />
+              <label for="doubleCheck" style="margin: 0; font-weight: normal"
+                >Double Check (Humanize twice)</label
+              >
+            </div>
+
             <div class="btn-group" style="margin-top: 1.5rem">
               <button class="btn-primary" type="submit" id="submitBtn">
                 Humanize Text
@@ -290,6 +304,7 @@
       const pasteBtn = document.getElementById("pasteBtn");
       const submitBtn = document.getElementById("submitBtn");
       const copyBtn = document.getElementById("copyBtn");
+      const doubleCheckInput = document.getElementById("doubleCheck");
 
       const statusBadge = document.getElementById("status-badge");
       const resultText = document.getElementById("result-text");
@@ -352,6 +367,7 @@
             body: JSON.stringify({
               prompt: prompt,
               timeout: 120,
+              double_check: doubleCheckInput.checked,
             }),
           });
 
