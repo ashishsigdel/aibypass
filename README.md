@@ -35,3 +35,13 @@ Notes
 
 - Both tools perform the same flow: send `humanizedChat`, read `recordId`, then poll `loadRecordInfo` until the result is available or a timeout occurs.
 - The script and server try to handle the variations in the API responses described in your examples.
+
+## Deployment on Render
+
+1. Push this repository to GitHub.
+2. Create a new **Web Service** on [Render](https://render.com).
+3. Connect your GitHub repository.
+4. Render will automatically detect the `requirements.txt` and `Procfile`.
+   - **Build Command:** `pip install -r requirements.txt`
+   - **Start Command:** `gunicorn app:app`
+5. Click **Create Web Service**.
